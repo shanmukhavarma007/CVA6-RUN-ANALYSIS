@@ -1,72 +1,103 @@
-CVA6 RISC-V Physical Design — Post-Route Case Study
-Project: CVA6 single-clock RISC-V processor
-Implementation focus: Physical-design analysis, congestion evaluation, CTS, routing, DRC cleanup, and timing optimization
-EDA flow: Cadence Innovus (physical implementation); Cadence Genus was used in the broader RTL-to-GDSII project flow
-Status represented by this report: Post-route timing-fix stage; GDSII generation/signoff is not claimed here.
+# CVA6 RISC-V Physical Design — Post-Route Case Study
 
-Overview
-This case study documents the downstream physical-design work performed on the CVA6 implementation. The work progressed from placement evaluation through CTS, post-CTS analysis, routing, post-route DRC cleanup, and path-group timing fixes.
+![EDA Flow](https://shields.io)
+![Architecture](https://shields.io)
+![Stage](https://shields.io)
+![DRC Status](https://shields.io)
 
-The emphasis is on the engineering decisions and report-driven iteration rather than presenting a single QoR snapshot.
-Implementation and experiment log
-1. Placement experiment and database selection
-The selected placement experiment used:
-- Floorplan dimensions: 950 × 916
-- Floorplan area: 850,552 µm²
-- Macro-to-macro channel: 20 µm
-- Partial placement blockage between macros: 30% density
-- Placement core utilization: 82.6%
-- Global-route overflow: 0.20%
-- Hotspot score: 1.56
-The report's congestion heatmap and metrics supported advancing this placement result to CTS. This is the selected placement baseline documented in the run analysis.
-2. Clock-tree synthesis and post-CTS evaluation
-Stage	Core utilization	Overflow	Hotspot score
-CTS	83.2%	0.47% (0.11% H, 0.36% V)	14.83
-Post-CTS	83.6%	0.53% (0.11% H, 0.44% V)	16.39
+> **Project Scope Note:** This README documents the downstream physical-design stages and results explicitly captured in the supplied run analysis. It reflects the **post-route timing-fix stage** and does not claim GDSII generation, foundry signoff, tape-out, or full-chip timing closure.
 
+---
 
-The CTS assessment identified maximum-transition violations that needed attention before downstream implementation. The post-CTS reports were reviewed for setup, hold, design-rule violations, and congestion.
-3. Routing and initial post-route checks
-The routing report recorded:
-- Routing-stage DRC count: 40
-- Congestion overflow: 0.51% (0.20% horizontal, 0.31% vertical)
-- Hotspot score: 18.12
-- Antenna violations: 0
-The initial post-route report showed 10 DRC violations. The violation summary included via-related and wide-metal-jog (WMJ) issues.
-4. Post-route DRC cleanup
-A route ECO was rerun with the route_via_with_block_pins_only true setting. The remaining WMJ issues were manually cleared by replacing and rotating vias over macro pins.
+## 📋 Project Summary
 
-The report records the resulting DRC verification as:
-- Final DRC violations: 0
-This result refers to the DRC verification shown in the supplied run analysis; it should not be interpreted as a complete foundry signoff or tape-out claim.
-5. Timing optimization and path-group closure
-The run analysis documents three timing-related steps: LVT enablement, useful-skew analysis, and path-group-specific timing fixes.
+| Attribute | Details |
+| :--- | :--- |
+| **Design Target** | CVA6 single-clock RISC-V processor |
+| **Implementation Focus** | Physical-design analysis, congestion evaluation, CTS, routing, DRC cleanup, and timing optimization |
+| **Primary EDA Tool** | Cadence Innovus *(Cadence Genus used in the broader RTL-to-GDSII flow)* |
+| **Current Milestone** | Post-route timing-fix stage |
 
-The final timing-fix section records:
-Path group	Reported status	WNS
-I2O	Timing fixed	+0.028 ns
-Default	Timing fixed	+0.186 ns
+### Overview
+This case study documents the downstream physical-design work performed on the CVA6 implementation. Rather than presenting a single Quality of Results (QoR) snapshot, this repository highlights **engineering decisions and report-driven iteration** across placement evaluation, clock-tree synthesis (CTS), post-CTS analysis, routing, post-route DRC cleanup, and path-group timing fixes.
 
+---
 
-I2O path approach: A maximum-delay constraint was inserted. The report explains that input-to-output paths did not have valid timing endpoints for closure without an explicit maximum-delay constraint.
+## 📊 Stage-by-Stage Progression
 
-Default path approach: The I/O delay budget was reduced from 60% to 40% of the clock period. The report identifies these paths as reset-port-to-register-CDN-pin paths, for which recovery and removal checks apply.
+### 1. Placement Experiment & Database Selection
+The selected placement baseline advanced to CTS was chosen based on congestion heatmaps and floorplan metrics:
 
-These WNS values apply to the two path groups listed above. They do not establish that every timing group or all signoff checks are closed.
-Key engineering observations
-- Congestion was tracked across placement, CTS, post-CTS, and routing using both overflow and hotspot metrics.
-- The placement result selected for CTS had 0.20% overflow and a 1.56 hotspot score.
-- Routing introduced DRC work that required a targeted route ECO and manual via-level cleanup around macro pins.
-- Timing closure was treated by path group, with constraints selected to match the path behavior described in the reports.
-- The report captures iterative implementation and debugging, not merely a final screenshot.
-Evidence
-The accompanying source report contains the detailed Innovus report snapshots and congestion heatmaps:
-- Placement and selected-database evidence: pages 1–2
-- CTS and post-CTS timing/congestion evidence: pages 2–5
-- Routing, post-route DRC, and congestion evidence: pages 5–8
-- LVT and useful-skew timing experiments: pages 8–10
-- Final path-group timing fixes: page 11
-See [`reports/CVA6_Run_Analysis_Source.docx`](reports/CVA6_Run_Analysis_Source.docx).
-Scope and status
-This write-up describes the stages and results explicitly captured in the supplied run analysis. It does not claim GDSII output generation, foundry signoff, tape-out, or full-chip timing closure. Those should only be added when separately verified.
-Prepared from the CVA6 Run Analysis report supplied with this project. Internal working database filenames have been intentionally omitted from this public-facing case study.
+* **Floorplan Dimensions:** `950 × 916` (`850,552 µm²` total area)
+* **Macro-to-Macro Channel:** `20 µm`
+* **Partial Placement Blockage:** `30%` density between macros
+* **Placement Core Utilization:** `82.6%`
+* **Global-Route Overflow:** `0.20%`
+* **Hotspot Score:** `1.56`
+
+---
+
+### 2. Clock-Tree Synthesis (CTS) & Post-CTS Evaluation
+
+| Stage | Core Utilization | Overflow (Total / H / V) | Hotspot Score | Key Engineering Findings |
+| :--- | :--- | :--- | :--- | :--- |
+| **CTS** | `83.2%` | `0.47%` (`0.11%` H, `0.36%` V) | `14.83` | Identified max-transition violations needing attention before downstream steps. |
+| **Post-CTS** | `83.6%` | `0.53%` (`0.11%` H, `0.44%` V) | `16.39` | Reviewed reports for setup, hold, design-rule violations (DRVs), and congestion. |
+
+---
+
+### 3. Routing & Initial Post-Route Checks
+Routing introduced congestion and physical rule violations that required targeted intervention:
+
+* **Routing-Stage DRC Count:** `40`
+* **Congestion Overflow:** `0.51%` (`0.20%` horizontal, `0.31%` vertical)
+* **Hotspot Score:** `18.12`
+* **Antenna Violations:** `0`
+* **Initial Post-Route DRC Count:** `10` *(primarily via-related and wide-metal-jog [WMJ] issues)*
+
+---
+
+### 4. Post-Route DRC Cleanup
+A two-step automated and manual cleanup strategy eliminated all reported post-route violations:
+
+1. **Targeted Route ECO:** Reran routing with `route_via_with_block_pins_only true`.
+2. **Manual Layout Intervention:** Cleared remaining wide-metal-jog (WMJ) issues by manually replacing and rotating vias over macro pins.
+3. **Final Verification Result:** **`0` DRC violations** *(as recorded in the supplied run analysis; not a foundry signoff claim)*.
+
+---
+
+### 5. Timing Optimization & Path-Group Closure
+Timing closure combined **LVT enablement**, **useful-skew analysis**, and **constraint adjustments tailored to specific path behaviors**:
+
+| Path Group | Reported Status | Worst Negative Slack (WNS) | Engineering Fix Applied |
+| :--- | :--- | :--- | :--- |
+| **I2O** | Timing fixed | **`+0.028 ns`** | Inserted a `max_delay` constraint, as input-to-output paths lacked valid timing endpoints without an explicit bound. |
+| **Default** | Timing fixed | **`+0.186 ns`** | Reduced I/O delay budget from `60%` to `40%` of the clock period for reset-port-to-register-`CDN`-pin recovery/removal checks. |
+
+> **Timing Disclaimer:** These WNS results apply strictly to the `I2O` and `Default` path groups listed above and do not establish full-chip timing closure across all path groups or signoff corners.
+
+---
+
+## 💡 Key Engineering Takeaways
+
+* **Continuous Congestion Tracking:** Congestion was tracked across placement, CTS, post-CTS, and routing using both overflow percentages and hotspot scores.
+* **Clean Placement Baseline:** Starting CTS from a well-behaved placement (`0.20%` overflow, `1.56` hotspot score) established a solid foundation for downstream clock and signal routing.
+* **Hybrid DRC Resolution:** Post-route DRC cleanup required pairing global router settings (`route_via_with_block_pins_only true`) with surgical, manual via rotation and replacement near macro pins.
+* **Behavior-Driven Constraints:** Path groups were closed by matching timing constraints to actual circuit topology (explicit `max_delay` bounds for unconstrained I2O paths and adjusted I/O budgets for async reset recovery/removal paths).
+* **Iterative Debugging Focus:** The workflow demonstrates systematic, report-driven physical design debugging rather than relying on a single final QoR snapshot.
+
+---
+
+## 📂 Source Evidence & Documentation
+
+Detailed Innovus report snapshots, timing logs, and congestion heatmaps are archived in [`reports/CVA6_Run_Analysis_Source.docx`](reports/CVA6_Run_Analysis_Source.docx):
+
+* **Pages 1–2:** Placement experiments and selected-database evidence
+* **Pages 2–5:** CTS and post-CTS timing and congestion evidence
+* **Pages 5–8:** Routing, post-route DRC, and congestion evidence
+* **Pages 8–10:** LVT enablement and useful-skew timing experiments
+* **Page 11:** Final path-group timing fixes
+
+---
+
+*Prepared from the CVA6 Run Analysis report supplied with this project. Internal working database filenames have been intentionally omitted from this public-facing case study.*
